@@ -1,50 +1,33 @@
-const STORAGE_KEY = 'routine-app-data-v3'
+const KEY = 'routine-app-data-v4'
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+export const defaultData = { routines: [], exams: [], theme: 'system' }
 
-export const defaultData = {
-  slotCount: 8,
-  timeSlots: ['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00','12:00-13:00','13:00-14:00','14:00-15:00','15:00-16:00'],
-  routines: [],
-  theme: 'light',
-}
-
-const buildSlots = (count) => Array.from({ length: count }, (_, i) => `${String(8+i).padStart(2,'0')}:00-${String(9+i).padStart(2,'0')}:00`)
-
-function migrateLegacy(data) {
-  const migrated = { ...defaultData, ...data }
-  migrated.slotCount = Number(migrated.slotCount) || defaultData.slotCount
-  migrated.timeSlots = Array.isArray(migrated.timeSlots) ? migrated.timeSlots.slice(0, migrated.slotCount) : []
-  if (migrated.timeSlots.length !== migrated.slotCount) migrated.timeSlots = buildSlots(migrated.slotCount)
-
-  migrated.routines = (migrated.routines || []).map((item, idx) => {
-    const slotFromLegacy = item.start && item.end ? `${item.start}-${item.end}` : ''
+// Accepts v1–v4 data. Per-class exam strings become standalone (undated) exams.
+export function migrate(raw) {
+  const legacyExams = []
+  const routines = (raw.routines || []).map((r, i) => {
+    ;(r.exams || []).forEach((title) => legacyExams.push({ id: crypto.randomUUID(), course: r.course || '', title, date: '' }))
     return {
-      id: item.id || crypto.randomUUID(),
-      day: days.includes(item.day) ? item.day : days[idx % 7],
-      timeSlot: item.timeSlot || slotFromLegacy || migrated.timeSlots[idx % migrated.timeSlots.length],
-      course: item.course || '',
-      teacher: item.teacher || '',
-      room: item.room || item.classroom || '',
-      notes: Array.isArray(item.notes) ? item.notes : [],
-      exams: Array.isArray(item.exams) ? item.exams : [],
-      reminders: Array.isArray(item.reminders) ? item.reminders : [],
-      color: item.color || '#A7D4F6',
+      id: r.id || crypto.randomUUID(),
+      day: days.includes(r.day) ? r.day : days[i % 7],
+      timeSlot: r.timeSlot || (r.start && r.end ? `${r.start}-${r.end}` : '09:00-10:00'),
+      course: r.course || '', teacher: r.teacher || '', room: r.room || r.classroom || '',
+      color: r.color || '#007AFF',
+      note: r.note ?? (Array.isArray(r.notes) ? r.notes.join('\n') : ''),
     }
   })
-  return migrated
+  const exams = Array.isArray(raw.exams) ? raw.exams.filter((e) => e && typeof e === 'object') : []
+  return { theme: raw.theme || 'system', routines, exams: [...exams, ...legacyExams] }
 }
 
 export function loadData() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('routine-app-data-v2') || localStorage.getItem('routine-app-data-v1')
-    if (!raw) return defaultData
-    return migrateLegacy(JSON.parse(raw))
+    const raw = ['v4', 'v3', 'v2', 'v1'].map((v) => localStorage.getItem(`routine-app-data-${v}`)).find(Boolean)
+    return raw ? migrate(JSON.parse(raw)) : defaultData
   } catch {
     return defaultData
   }
 }
 
-export function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
+export const saveData = (data) => localStorage.setItem(KEY, JSON.stringify(data))

@@ -1,6 +1,17 @@
-import GlassCard from '../components/GlassCard'
+import { ClipboardList, Plus, TriangleAlert } from 'lucide-react'
+import { Empty, ItemRow, NavBtn, Screen, Section, daysUntil, dueLabel, shortDate } from '../components/ui'
 
-export default function Exams({ routines }) {
-  const examItems = routines.flatMap(r => r.exams.map((e, i) => ({ id: `${r.id}-${i}`, course: r.course, day: r.day, slot: r.timeSlot, exam: e })))
-  return <GlassCard><h2 className="mb-4 text-xl font-bold">Exam Schedule (from timetable entries)</h2><div className="space-y-2">{examItems.map(e => <div key={e.id} className="flex items-center justify-between rounded-xl bg-white/20 p-3 dark:bg-slate-800/70"><span>{e.course}: {e.exam}</span><span>{e.day} {e.slot}</span></div>)}</div></GlassCard>
+export default function Exams({ exams, onOpen, onAdd }) {
+  const dated = exams.filter((e) => e.date).sort((a, b) => a.date.localeCompare(b.date))
+  const groups = [
+    ['Upcoming', dated.filter((e) => daysUntil(e.date) >= 0)],
+    ['No Date', exams.filter((e) => !e.date)],
+    ['Past', dated.filter((e) => daysUntil(e.date) < 0).reverse()],
+  ].filter(([, l]) => l.length)
+  return <Screen title="Exams" trailing={<NavBtn onClick={() => onAdd()}><Plus size={26} /></NavBtn>}>
+    {groups.length ? groups.map(([h, list]) => <Section key={h} header={h}>
+      {list.map((e) => <ItemRow key={e.id} color={h === 'Past' ? '#8E8E93' : '#FF3B30'} icon={TriangleAlert} title={e.title}
+        sub={[e.course, e.date && shortDate(e.date)].filter(Boolean).join(' · ')} value={dueLabel(e.date)} onClick={() => onOpen(e)} />)}
+    </Section>) : <Empty icon={ClipboardList} title="No Exams" text="Tap + to add an exam and track the countdown." />}
+  </Screen>
 }

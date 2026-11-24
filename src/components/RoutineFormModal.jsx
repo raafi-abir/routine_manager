@@ -1,56 +1,51 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { Input, NavBtn, PALETTE, Pick, Row, Section, Sheet, DAYS, toMin } from './ui'
 
-const emptyForm = { id: null, day: 'Monday', timeSlot: '', course: '', teacher: '', room: '', color: '#6366F1', notesText: '', examText: '', reminderText: '' }
+const time = 'bg-transparent text-right text-label2 outline-none'
 
-const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-
-export default function RoutineFormModal({ open, onClose, onSave, editing, prefill, timeSlots }) {
-  const [form, setForm] = useState(emptyForm)
+export default function RoutineFormModal({ open, onClose, onSave, editing, prefill, routines }) {
+  const [f, setF] = useState(null)
   useEffect(() => {
-    const source = editing ? {
-      ...editing,
-      notesText: (editing.notes || []).join('\n'),
-      examText: (editing.exams || []).join('\n'),
-      reminderText: (editing.reminders || []).join('\n'),
-    } : { ...emptyForm, day: prefill?.day || 'Monday', timeSlot: prefill?.timeSlot || timeSlots?.[0] || '' }
-    setForm(source)
-  }, [editing, open, timeSlots, prefill])
+    if (!open) return
+    if (editing) { const [start, end] = editing.timeSlot.split('-'); setF({ ...editing, start, end }); return }
+    const day = prefill || 'Monday'
+    const last = routines.filter((r) => r.day === day).map((r) => r.timeSlot.split('-')[1]).sort().pop()
+    const start = last || '09:00'
+    const h = Math.min(23, Number(start.slice(0, 2)) + 1)
+    setF({ id: null, day, course: '', teacher: '', room: '', color: PALETTE[0], note: '', start, end: `${String(h).padStart(2, '0')}${start.slice(2)}` })
+  }, [open, editing, prefill])
+  if (!f) return null
 
-  if (!open) return null
-
-  const onSubmit = () => {
-    onSave({
-      id: form.id || crypto.randomUUID(),
-      day: form.day,
-      timeSlot: form.timeSlot,
-      course: form.course,
-      teacher: form.teacher,
-      room: form.room,
-      color: form.color,
-      notes: form.notesText.split('\n').map(v => v.trim()).filter(Boolean),
-      exams: form.examText.split('\n').map(v => v.trim()).filter(Boolean),
-      reminders: form.reminderText.split('\n').map(v => v.trim()).filter(Boolean),
-    })
+  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }))
+  const bad = toMin(f.end) <= toMin(f.start)
+  const clash = routines.find((r) => {
+    const [a, b] = r.timeSlot.split('-')
+    return r.id !== f.id && r.day === f.day && toMin(a) < toMin(f.end) && toMin(f.start) < toMin(b)
+  })
+  const submit = () => {
+    onSave({ id: f.id || crypto.randomUUID(), day: f.day, timeSlot: `${f.start}-${f.end}`, course: f.course.trim(), teacher: f.teacher, room: f.room, color: f.color, note: f.note.trim() })
     onClose()
   }
 
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass w-full max-w-2xl rounded-3xl p-5">
-      <h3 className="mb-4 text-lg font-semibold">{form.id ? 'Edit Cell Entry' : 'Add Cell Entry'}</h3>
-      <div className="grid gap-3 md:grid-cols-2">
-        <select className="rounded-xl bg-white/40 p-3 dark:bg-slate-800/70" value={form.day} onChange={e => setForm({ ...form, day: e.target.value })}>{days.map(d => <option key={d}>{d}</option>)}</select>
-        <select className="rounded-xl bg-white/40 p-3 dark:bg-slate-800/70" value={form.timeSlot} onChange={e => setForm({ ...form, timeSlot: e.target.value })}>{timeSlots.map(s => <option key={s}>{s}</option>)}</select>
-        {['course', 'teacher', 'room'].map((f) => <input key={f} className="rounded-xl bg-white/40 p-3 dark:bg-slate-800/70" placeholder={f} value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} />)}
-        <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="h-12 rounded-xl" />
-        <textarea className="rounded-xl bg-white/40 p-3 dark:bg-slate-800/70 md:col-span-2" placeholder="Notes (1 per line)" value={form.notesText} onChange={e => setForm({ ...form, notesText: e.target.value })} />
-        <textarea className="rounded-xl bg-white/40 p-3 dark:bg-slate-800/70" placeholder="Exams (1 per line)" value={form.examText} onChange={e => setForm({ ...form, examText: e.target.value })} />
-        <textarea className="rounded-xl bg-white/40 p-3 dark:bg-slate-800/70" placeholder="Reminders (1 per line)" value={form.reminderText} onChange={e => setForm({ ...form, reminderText: e.target.value })} />
+  return <Sheet open={open} onClose={onClose} title={f.id ? 'Edit Class' : 'New Class'}
+    left={<NavBtn onClick={onClose}>Cancel</NavBtn>} right={<NavBtn bold disabled={!f.course.trim() || bad} onClick={submit}>Save</NavBtn>}>
+    <Section>
+      <Row><Input placeholder="Course" value={f.course} onChange={(e) => set('course')(e.target.value)} /></Row>
+      <Row><Input placeholder="Teacher" value={f.teacher} onChange={(e) => set('teacher')(e.target.value)} /></Row>
+      <Row><Input placeholder="Room" value={f.room} onChange={(e) => set('room')(e.target.value)} /></Row>
+    </Section>
+    <Section footer={(bad || clash) && <span className="text-danger">{bad ? 'End time must be after start time.' : `Overlaps with ${clash.course || 'another class'}.`}</span>}>
+      <Pick label="Day" value={f.day} onChange={set('day')} options={DAYS.map((d) => ({ v: d, l: d }))} />
+      <Row label="Starts"><input type="time" value={f.start} onChange={(e) => set('start')(e.target.value)} className={time} /></Row>
+      <Row label="Ends"><input type="time" value={f.end} onChange={(e) => set('end')(e.target.value)} className={time} /></Row>
+    </Section>
+    <Section header="Color">
+      <div className="flex justify-between px-4 py-3">
+        {PALETTE.map((c) => <button key={c} aria-label={c} onClick={() => set('color')(c)} className="grid h-8 w-8 place-items-center rounded-full" style={{ background: c }}>
+          {f.color.toUpperCase() === c && <span className="h-3 w-3 rounded-full bg-white" />}
+        </button>)}
       </div>
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-xl px-4 py-2">Cancel</button>
-        <button onClick={onSubmit} className="rounded-xl bg-indigo-500 px-4 py-2 text-white">Save</button>
-      </div>
-    </motion.div>
-  </div>
+    </Section>
+    <Section header="Note"><Row><textarea rows={3} placeholder="Add a note" value={f.note} onChange={(e) => set('note')(e.target.value)} className="w-full resize-none bg-transparent text-[17px] outline-none placeholder:text-label3" /></Row></Section>
+  </Sheet>
 }

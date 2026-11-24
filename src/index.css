@@ -2,10 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light dark; }
-body { @apply font-sans antialiased bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100; }
-
-.glass {
-  @apply bg-white/85 dark:bg-slate-900/45 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/50 shadow-lg;
+:root {
+  color-scheme: light;
+  --bg: #f2f2f7; --card: #ffffff; --bar: rgba(249, 249, 249, 0.82);
+  --sep: rgba(60, 60, 67, 0.29);
+  --label: #000000; --label2: rgba(60, 60, 67, 0.6); --label3: rgba(60, 60, 67, 0.3);
+  --fill: rgba(120, 120, 128, 0.2); --fill3: rgba(120, 120, 128, 0.12); --seg: #ffffff;
+  --tint: #007aff; --danger: #ff3b30; --ok: #34c759;
+}
+.dark {
+  color-scheme: dark;
+  --bg: #000000; --card: #1c1c1e; --bar: rgba(30, 30, 32, 0.82);
+  --sep: rgba(84, 84, 88, 0.65);
+  --label: #ffffff; --label2: rgba(235, 235, 245, 0.6); --label3: rgba(235, 235, 245, 0.3);
+  --fill: rgba(120, 120, 128, 0.36); --fill3: rgba(120, 120, 128, 0.24); --seg: #636366;
+  --tint: #0a84ff; --danger: #ff453a; --ok: #30d158;
 }
 
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg); color: var(--label);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 17px; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none;
+}
+button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+input, select, textarea { font: inherit; color: inherit; }

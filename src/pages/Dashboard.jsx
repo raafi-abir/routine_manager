@@ -1,14 +1,24 @@
-import GlassCard from '../components/GlassCard'
+import { CalendarCheck, Plus, TriangleAlert } from 'lucide-react'
+import { ClassRow, Empty, ItemRow, NavBtn, Screen, Section, daysUntil, dueLabel, shortDate, slotLabel, toMin } from '../components/ui'
 
-export default function Dashboard({ routines }) {
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long' })
-  const todayClasses = routines.filter(r => r.day === today)
-  const upcomingExams = routines.flatMap(r => r.exams.map(e => ({ course: r.course, text: e, slot: r.timeSlot }))).slice(0, 5)
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <GlassCard className="lg:col-span-2"><h2 className="mb-3 text-xl font-bold">Today's Classes</h2><div className="space-y-2">{todayClasses.length ? todayClasses.map(c => <div key={c.id} className="rounded-2xl p-3" style={{ backgroundColor: `${c.color}22`, borderLeft: `4px solid ${c.color}` }}>{c.timeSlot} • {c.course} • {c.room}</div>) : <p>No classes today.</p>}</div></GlassCard>
-      <GlassCard><h2 className="mb-3 text-xl font-bold">Upcoming Exams</h2><div className="space-y-2">{upcomingExams.map((e, i) => <div key={i} className="rounded-xl bg-white/20 p-3 dark:bg-slate-800/70">{e.course} - {e.text} ({e.slot})</div>)}</div></GlassCard>
-      <GlassCard className="lg:col-span-3"><h2 className="mb-3 text-xl font-bold">Active Reminders</h2><div className="grid gap-3 md:grid-cols-3">{routines.flatMap(r => r.reminders.map((x, i) => <div key={`${r.id}-${i}`} className="rounded-xl bg-amber-300/20 p-3">{r.course}: {x}</div>))}</div></GlassCard>
-    </div>
-  )
+export default function Dashboard({ routines, exams, onOpen, onAdd }) {
+  const now = new Date()
+  const mins = now.getHours() * 60 + now.getMinutes()
+  const today = now.toLocaleDateString('en-US', { weekday: 'long' })
+  const todays = routines.filter((r) => r.day === today).sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
+  const next = todays.find((r) => toMin(r.timeSlot.split('-')[1]) > mins)
+  const live = next && mins >= toMin(next.timeSlot.split('-')[0])
+  const soon = exams.filter((e) => e.date && daysUntil(e.date) >= 0).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3)
+
+  return <Screen title="Today" trailing={<NavBtn onClick={() => onAdd(today)}><Plus size={26} /></NavBtn>}>
+    <p className="-mt-1 mb-4 px-4 text-[15px] text-label2">{now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+    {next && <button onClick={() => onOpen(next)} className="mx-4 mb-6 block w-[calc(100%-32px)] rounded-[14px] bg-card p-4 text-left active:bg-fill3">
+      <p className="text-[13px] font-semibold uppercase" style={{ color: next.color }}>{live ? 'Now' : 'Up next'}</p>
+      <p className="mt-0.5 text-[22px] font-semibold leading-7">{next.course || 'Untitled'}</p>
+      <p className="mt-1 text-[15px] text-label2">{[slotLabel(next.timeSlot), next.room].filter(Boolean).join(' · ')}</p>
+    </button>}
+    {todays.length ? <Section header="Schedule">{todays.map((r) => <ClassRow key={r.id} r={r} onClick={() => onOpen(r)} />)}</Section>
+      : <Empty icon={CalendarCheck} title="No Classes Today" text="Enjoy the free day." />}
+    {soon.length > 0 && <Section header="Upcoming Exams">{soon.map((e) => <ItemRow key={e.id} color="#FF3B30" icon={TriangleAlert} title={e.title} sub={`${e.course} · ${shortDate(e.date)}`} value={dueLabel(e.date)} />)}</Section>}
+  </Screen>
 }
